@@ -1,8 +1,10 @@
 import os
 import logging
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -15,53 +17,64 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# In-memory storage
-users = {}
-products = {
-    1: {"id": 1, "name": "Laptop", "price": 999.99, "category": "Electronics", "description": "High-performance laptop", "image": "https://via.placeholder.com/200"},
-    2: {"id": 2, "name": "Smartphone", "price": 499.99, "category": "Electronics", "description": "Latest smartphone", "image": "https://via.placeholder.com/200"},
-    3: {"id": 3, "name": "Headphones", "price": 99.99, "category": "Accessories", "description": "Wireless headphones", "image": "https://via.placeholder.com/200"}
-}
-orders = {}
-order_counter = 1
+# Configure upload folders
+UPLOAD_FOLDER = 'uploads'
+PREVIEW_FOLDER = os.path.join(UPLOAD_FOLDER, 'previews')
+DIGITAL_FOLDER = os.path.join(UPLOAD_FOLDER, 'digital')
+os.makedirs(PREVIEW_FOLDER, exist_ok=True)
+os.makedirs(DIGITAL_FOLDER, exist_ok=True)
 
-class User(UserMixin):
-    def __init__(self, id, username, email, password_hash, is_admin=False):
-        self.id = id
-        self.username = username
-        self.email = email
-        self.password_hash = password_hash
-        self.is_admin = is_admin
+# Import models
+from models import User, Product, store
 
 @login_manager.user_loader
 def load_user(user_id):
-    return users.get(user_id)
+    return store.get_user(user_id)
+
+# Add context processor to make store available in all templates
+@app.context_processor
+def inject_store():
+    return dict(store=store)
 
 @app.route('/')
 def index():
-    return render_template('index.html', products=list(products.values())[:3])
+    featured_products = store.get_products_by_category()[:6]
+    return render_template('index.html', products=featured_products)
 
 @app.route('/products')
 def product_list():
     category = request.args.get('category')
     search = request.args.get('search', '').lower()
-    
-    filtered_products = products.values()
-    if category:
-        filtered_products = [p for p in filtered_products if p['category'] == category]
+
+    filtered_products = store.get_products_by_category(category) if category else store.get_products_by_category()
     if search:
-        filtered_products = [p for p in filtered_products if search in p['name'].lower()]
-    
-    categories = set(p['category'] for p in products.values())
+        filtered_products = [p for p in filtered_products if search in p.name.lower()]
+
+    categories = set(p.category for p in store.get_products_by_category())
     return render_template('products.html', products=filtered_products, categories=categories)
+
+@app.route('/products/<int:product_id>')
+def get_product(product_id):
+    product = store.get_product(product_id)
+    if product:
+        return jsonify({
+            'id': product.id,
+            'name': product.name,
+            'price': product.price,
+            'image': product.preview_image,
+            'category': product.category,
+            'description': product.description,
+            'file_type': product.file_type
+        })
+    return jsonify({'error': 'Product not found'}), 404
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
-        user = next((u for u in users.values() if u.email == email), None)
+
+        user = store.get_user_by_email(email)
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('index'))
@@ -74,14 +87,14 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        
-        if any(u.email == email for u in users.values()):
+
+        if store.get_user_by_email(email):
             flash('Email already registered')
             return redirect(url_for('register'))
-        
-        user_id = str(len(users) + 1)
+
+        user_id = str(len(store.users) + 1)
         user = User(user_id, username, email, generate_password_hash(password))
-        users[user_id] = user
+        store.add_user(user)
         login_user(user)
         return redirect(url_for('index'))
     return render_template('register.html')
@@ -91,6 +104,61 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+@app.route('/create_product', methods=['POST'])
+@login_required
+def create_product():
+    try:
+        name = request.form['name']
+        price = float(request.form['price'])
+        category = request.form['category']
+        description = request.form['description']
+        file_type = request.form['file_type']
+
+        preview_image = request.files.get('preview_image')
+        digital_file = request.files.get('digital_file')
+
+        if not digital_file:
+            flash('Digital product file is required')
+            return redirect(url_for('profile'))
+
+        product_id = len(store.products) + 1
+        preview_path = "https://via.placeholder.com/200"
+
+        if preview_image:
+            filename = secure_filename(f"{product_id}_{preview_image.filename}")
+            preview_image.save(os.path.join(PREVIEW_FOLDER, filename))
+            preview_path = url_for('static', filename=f'uploads/previews/{filename}')
+
+        digital_filename = secure_filename(f"{product_id}_{digital_file.filename}")
+        digital_file.save(os.path.join(DIGITAL_FOLDER, digital_filename))
+
+        product = Product(
+            id=product_id,
+            name=name,
+            price=price,
+            seller_id=current_user.id,
+            category=category,
+            description=description,
+            file_type=file_type,
+            preview_image=preview_path
+        )
+
+        store.add_product(product)
+        flash('Product created successfully')
+        return redirect(url_for('profile'))
+
+    except Exception as e:
+        logging.error(f"Error creating product: {str(e)}")
+        flash('Error creating product')
+        return redirect(url_for('profile'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    user_orders = store.get_user_orders(current_user.id)
+    seller_products = store.get_seller_products(current_user.id)
+    return render_template('profile.html', orders=user_orders, seller_products=seller_products)
 
 @app.route('/cart')
 def cart():
@@ -104,35 +172,20 @@ def checkout():
         if not cart_items:
             flash('Your cart is empty')
             return redirect(url_for('cart'))
-        
-        global order_counter
-        order = {
-            'id': order_counter,
-            'user_id': current_user.id,
-            'items': cart_items,
-            'status': 'pending'
-        }
-        orders[order_counter] = order
-        order_counter += 1
-        
+
+        order = store.create_order(current_user.id, cart_items)
         session['cart'] = {}
         flash('Order placed successfully!')
         return redirect(url_for('profile'))
     return render_template('checkout.html')
-
-@app.route('/profile')
-@login_required
-def profile():
-    user_orders = [order for order in orders.values() if order['user_id'] == current_user.id]
-    return render_template('profile.html', orders=user_orders)
 
 @app.route('/admin')
 @login_required
 def admin():
     if not current_user.is_admin:
         return redirect(url_for('index'))
-    return render_template('admin.html', orders=orders.values(), users=users.values())
+    return render_template('admin.html', orders=store.orders.values(), users=store.users.values())
 
 # Initialize admin user
 admin = User('admin', 'admin', 'admin@example.com', generate_password_hash('admin123'), is_admin=True)
-users['admin'] = admin
+store.add_user(admin)

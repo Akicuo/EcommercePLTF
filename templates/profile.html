@@ -3,16 +3,95 @@
 {% block content %}
 <div class="row">
     <div class="col-md-4">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-body">
                 <h3 class="card-title">Profile Information</h3>
                 <p><strong>Username:</strong> {{ current_user.username }}</p>
                 <p><strong>Email:</strong> {{ current_user.email }}</p>
             </div>
         </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title mb-3">List New Digital Product</h3>
+                <form method="post" action="{{ url_for('create_product') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price ($)</label>
+                        <input type="number" step="0.01" class="form-control" id="price" name="price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-control" id="category" name="category" required>
+                            <option value="E-Books">E-Books</option>
+                            <option value="Courses">Courses</option>
+                            <option value="Audio">Audio</option>
+                            <option value="Software">Software</option>
+                            <option value="Templates">Templates</option>
+                            <option value="Graphics">Graphics</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="file_type" class="form-label">File Type</label>
+                        <select class="form-control" id="file_type" name="file_type" required>
+                            <option value="pdf">PDF</option>
+                            <option value="video">Video</option>
+                            <option value="audio">Audio</option>
+                            <option value="software">Software</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="preview_image" class="form-label">Preview Image</label>
+                        <input type="file" class="form-control" id="preview_image" name="preview_image" accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label for="digital_file" class="form-label">Digital Product File</label>
+                        <input type="file" class="form-control" id="digital_file" name="digital_file" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">List Product</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <div class="col-md-8">
+        <h3>My Products</h3>
+        <div class="row mb-4">
+            {% for product in seller_products %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <img src="{{ product.preview_image }}" class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">{{ product.description }}</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                Category: {{ product.category }}<br>
+                                File Type: {{ product.file_type }}<br>
+                                Price: ${{ "%.2f"|format(product.price) }}
+                            </small>
+                        </p>
+                        <button class="btn btn-secondary btn-sm">Edit</button>
+                        <button class="btn btn-danger btn-sm">Remove</button>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col">
+                <div class="alert alert-info">
+                    You haven't listed any products yet. Use the form to list your first digital product!
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
         <h3>Order History</h3>
         {% if orders %}
             {% for order in orders %}

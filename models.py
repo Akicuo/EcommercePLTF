@@ -1,15 +1,19 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from flask_login import UserMixin
+from datetime import datetime
 
 @dataclass
 class Product:
     id: int
     name: str
     price: float
+    seller_id: str
     category: str
     description: str
-    image: str = "https://via.placeholder.com/200"
+    file_type: str  # e.g., "pdf", "video", "audio", "software"
+    preview_image: str = "https://via.placeholder.com/200"
+    created_at: datetime = field(default_factory=datetime.utcnow)
 
 @dataclass
 class OrderItem:
@@ -17,6 +21,7 @@ class OrderItem:
     name: str
     quantity: int
     price: float
+    seller_id: str
 
 @dataclass
 class Order:
@@ -24,6 +29,7 @@ class Order:
     user_id: str
     items: Dict[str, OrderItem]
     status: str = "pending"
+    created_at: datetime = field(default_factory=datetime.utcnow)
 
 class User(UserMixin):
     def __init__(self, id: str, username: str, email: str, password_hash: str, is_admin: bool = False):
@@ -32,6 +38,7 @@ class User(UserMixin):
         self.email = email
         self.password_hash = password_hash
         self.is_admin = is_admin
+        self.created_at = datetime.utcnow()
 
     def get_id(self):
         return str(self.id)
@@ -42,24 +49,30 @@ class DataStore:
         self.products: Dict[int, Product] = {
             1: Product(
                 id=1,
-                name="Laptop",
-                price=999.99,
-                category="Electronics",
-                description="High-performance laptop"
+                name="Digital Marketing Guide",
+                price=29.99,
+                seller_id="admin",
+                category="E-Books",
+                description="Comprehensive digital marketing strategy guide",
+                file_type="pdf"
             ),
             2: Product(
                 id=2,
-                name="Smartphone",
-                price=499.99,
-                category="Electronics",
-                description="Latest smartphone"
+                name="Stock Trading Course",
+                price=99.99,
+                seller_id="admin",
+                category="Courses",
+                description="Learn stock market trading fundamentals",
+                file_type="video"
             ),
             3: Product(
                 id=3,
-                name="Headphones",
-                price=99.99,
-                category="Accessories",
-                description="Wireless headphones"
+                name="Meditation Music Pack",
+                price=19.99,
+                seller_id="admin",
+                category="Audio",
+                description="Collection of calming meditation tracks",
+                file_type="audio"
             )
         }
         self.orders: Dict[int, Order] = {}
@@ -85,6 +98,9 @@ class DataStore:
             return [p for p in self.products.values() if p.category == category]
         return list(self.products.values())
 
+    def get_seller_products(self, seller_id: str) -> List[Product]:
+        return [p for p in self.products.values() if p.seller_id == seller_id]
+
     def search_products(self, query: str) -> List[Product]:
         query = query.lower()
         return [p for p in self.products.values() if query in p.name.lower()]
@@ -104,6 +120,10 @@ class DataStore:
 
     def get_user_orders(self, user_id: str) -> List[Order]:
         return [o for o in self.orders.values() if o.user_id == user_id]
+
+    def get_seller_orders(self, seller_id: str) -> List[Order]:
+        return [o for o in self.orders.values() 
+                if any(item.seller_id == seller_id for item in o.items.values())]
 
     def update_order_status(self, order_id: int, status: str) -> bool:
         if order := self.orders.get(order_id):
