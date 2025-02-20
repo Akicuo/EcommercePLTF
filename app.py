@@ -117,6 +117,7 @@ def create_product():
 
         preview_image = request.files.get('preview_image')
         digital_file = request.files.get('digital_file')
+        additional_images = request.files.getlist('additional_images')
 
         if not digital_file:
             flash('Digital product file is required')
@@ -124,11 +125,18 @@ def create_product():
 
         product_id = len(store.products) + 1
         preview_path = "https://via.placeholder.com/200"
+        additional_image_paths = []
 
         if preview_image:
-            filename = secure_filename(f"{product_id}_{preview_image.filename}")
+            filename = secure_filename(f"{product_id}_main_{preview_image.filename}")
             preview_image.save(os.path.join(PREVIEW_FOLDER, filename))
             preview_path = url_for('static', filename=f'uploads/previews/{filename}')
+
+        for idx, image in enumerate(additional_images):
+            if image:
+                filename = secure_filename(f"{product_id}_additional_{idx}_{image.filename}")
+                image.save(os.path.join(PREVIEW_FOLDER, filename))
+                additional_image_paths.append(url_for('static', filename=f'uploads/previews/{filename}'))
 
         digital_filename = secure_filename(f"{product_id}_{digital_file.filename}")
         digital_file.save(os.path.join(DIGITAL_FOLDER, digital_filename))
@@ -141,7 +149,8 @@ def create_product():
             category=category,
             description=description,
             file_type=file_type,
-            preview_image=preview_path
+            preview_image=preview_path,
+            additional_images=additional_image_paths
         )
 
         store.add_product(product)

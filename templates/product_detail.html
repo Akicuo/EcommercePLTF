@@ -11,7 +11,24 @@
 
     <div class="row">
         <div class="col-md-6">
-            <img src="{{ product.preview_image }}" class="img-fluid rounded" alt="{{ product.name }}">
+            <!-- Main image -->
+            <img src="{{ product.preview_image }}" class="img-fluid rounded mb-3" alt="{{ product.name }}" id="main-product-image">
+
+            <!-- Additional images -->
+            {% if product.additional_images %}
+            <div class="row">
+                <div class="col-3">
+                    <img src="{{ product.preview_image }}" class="img-thumbnail mb-2 product-thumbnail active" 
+                         onclick="updateMainImage(this.src)" alt="Main preview">
+                </div>
+                {% for image in product.additional_images %}
+                <div class="col-3">
+                    <img src="{{ image }}" class="img-thumbnail mb-2 product-thumbnail" 
+                         onclick="updateMainImage(this.src)" alt="Additional view {{ loop.index }}">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         <div class="col-md-6">
             <h1 class="mb-3">{{ product.name }}</h1>
@@ -73,4 +90,30 @@
         </div>
     </div>
 </div>
+
+<script>
+function updateMainImage(src) {
+    document.getElementById('main-product-image').src = src;
+    // Update active thumbnail
+    document.querySelectorAll('.product-thumbnail').forEach(thumb => {
+        thumb.classList.remove('active');
+        if (thumb.src === src) {
+            thumb.classList.add('active');
+        }
+    });
+}
+</script>
+
+<style>
+.product-thumbnail {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.product-thumbnail:hover {
+    opacity: 0.8;
+}
+.product-thumbnail.active {
+    border-color: var(--bs-primary);
+}
+</style>
 {% endblock %}
