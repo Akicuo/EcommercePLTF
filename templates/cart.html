@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Shopping Cart</h2>
+<div id="cart-items">
+    <!-- Cart items will be dynamically populated here -->
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <h4>Total: $<span id="cart-total">0.00</span></h4>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-secondary" onclick="clearCart()">Clear Cart</button>
+        <a href="{{ url_for('checkout') }}" class="btn btn-primary">Proceed to Checkout</a>
+    </div>
+</div>
+
+<template id="cart-item-template">
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <img src="" class="img-fluid" alt="">
+                </div>
+                <div class="col-md-6">
+                    <h5 class="product-name"></h5>
+                    <p class="product-price"></p>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <button class="btn btn-outline-secondary decrease-quantity" type="button">-</button>
+                        <input type="number" class="form-control quantity-input" value="1" min="1">
+                        <button class="btn btn-outline-secondary increase-quantity" type="button">+</button>
+                    </div>
+                    <button class="btn btn-danger remove-item mt-2">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}

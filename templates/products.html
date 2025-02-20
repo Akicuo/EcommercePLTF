@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <h3>Categories</h3>
+        <div class="list-group">
+            <a href="{{ url_for('product_list') }}" class="list-group-item list-group-item-action">All</a>
+            {% for category in categories %}
+            <a href="{{ url_for('product_list', category=category) }}" class="list-group-item list-group-item-action">
+                {{ category }}
+            </a>
+            {% endfor %}
+        </div>
+        
+        <h3 class="mt-4">Search</h3>
+        <form method="get">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" placeholder="Search products...">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="row">
+            {% for product in products %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">{{ product.description }}</p>
+                        <p class="card-text"><strong>${{ "%.2f"|format(product.price) }}</strong></p>
+                        <button class="btn btn-primary add-to-cart" data-product-id="{{ product.id }}">
+                            Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
