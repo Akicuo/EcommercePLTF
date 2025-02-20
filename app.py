@@ -189,3 +189,11 @@ def admin():
 # Initialize admin user
 admin = User('admin', 'admin', 'admin@example.com', generate_password_hash('admin123'), is_admin=True)
 store.add_user(admin)
+
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    product = store.get_product(product_id)
+    if product is None:
+        flash('Product not found')
+        return redirect(url_for('product_list'))
+    return render_template('product_detail.html', product=product)
