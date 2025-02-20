@@ -60,6 +60,17 @@
                         <label for="digital_file" class="form-label">Digital Product File</label>
                         <input type="file" class="form-control" id="digital_file" name="digital_file" required>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableExpiry" onchange="toggleExpiryDate()">
+                            <label class="form-check-label" for="enableExpiry">Enable Expiry Date</label>
+                        </div>
+                        <div id="expiryDateGroup" class="mt-2" style="display: none;">
+                            <label for="expiry_date" class="form-label">Expiry Date</label>
+                            <input type="datetime-local" class="form-control" id="expiry_date" name="expiry_date">
+                            <small class="text-muted">After this date, the product will no longer be available for purchase</small>
+                        </div>
+                    </div>
                     <button type="submit" class="btn btn-primary">List Product</button>
                 </form>
             </div>
@@ -132,4 +143,23 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function toggleExpiryDate() {
+    const expiryGroup = document.getElementById('expiryDateGroup');
+    const expiryInput = document.getElementById('expiry_date');
+    const enableExpiry = document.getElementById('enableExpiry');
+
+    if (enableExpiry.checked) {
+        expiryGroup.style.display = 'block';
+        // Set minimum date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        expiryInput.min = tomorrow.toISOString().split('.')[0];
+    } else {
+        expiryGroup.style.display = 'none';
+        expiryInput.value = '';
+    }
+}
+</script>
 {% endblock %}

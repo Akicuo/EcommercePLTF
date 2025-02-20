@@ -114,6 +114,7 @@ def create_product():
         category = request.form['category']
         description = request.form['description']
         file_type = request.form['file_type']
+        expiry_date = request.form.get('expiry_date')
 
         preview_image = request.files.get('preview_image')
         digital_file = request.files.get('digital_file')
@@ -141,6 +142,9 @@ def create_product():
         digital_filename = secure_filename(f"{product_id}_{digital_file.filename}")
         digital_file.save(os.path.join(DIGITAL_FOLDER, digital_filename))
 
+        # Convert expiry_date string to datetime if provided
+        expiry_datetime = datetime.fromisoformat(expiry_date) if expiry_date else None
+
         product = Product(
             id=product_id,
             name=name,
@@ -150,7 +154,8 @@ def create_product():
             description=description,
             file_type=file_type,
             preview_image=preview_path,
-            additional_images=additional_image_paths
+            additional_images=additional_image_paths,
+            expiry_date=expiry_datetime
         )
 
         store.add_product(product)

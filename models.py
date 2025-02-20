@@ -14,6 +14,7 @@ class Product:
     file_type: str  # e.g., "pdf", "video", "audio", "software"
     preview_image: str = "https://via.placeholder.com/200"
     additional_images: List[str] = field(default_factory=list)
+    expiry_date: Optional[datetime] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 @dataclass

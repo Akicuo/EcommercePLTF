@@ -81,6 +81,16 @@
                         <h5>Access Method</h5>
                         <p>After purchase, you'll receive immediate access to download or stream your content from your order history.</p>
                     </div>
+                    <div class="mb-3">
+                        <h5>Availability</h5>
+                        {% if product.expiry_date %}
+                            <p class="{% if product.expiry_date < current_time %}text-danger{% endif %}">
+                                Available until: {{ product.expiry_date.strftime('%B %d, %Y %I:%M %p') }}
+                            </p>
+                        {% else %}
+                            <p class="text-success">No expiration date</p>
+                        {% endif %}
+                    </div>
                     <div class="alert alert-info">
                         <i data-feather="info" class="me-2"></i>
                         Digital products are delivered instantly after payment confirmation.
