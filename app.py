@@ -1,5 +1,6 @@
 import os
 import logging
+import stripe
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -191,7 +192,12 @@ def checkout():
         session['cart'] = {}
         flash('Order placed successfully!')
         return redirect(url_for('profile'))
-    return render_template('checkout.html')
+
+    # GET method - show checkout page with Stripe integration
+    return render_template(
+        'checkout.html',
+        stripe_publishable_key=os.environ.get('STRIPE_PUBLISHABLE_KEY')
+    )
 
 @app.route('/admin')
 @login_required
@@ -211,3 +217,64 @@ def product_detail(product_id):
         flash('Product not found')
         return redirect(url_for('product_list'))
     return render_template('product_detail.html', product=product)
+
+
+# Initialize Stripe
+import os
+import stripe
+from flask import jsonify
+
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+
+# Add these new routes after your existing routes
+
+@app.route('/create-payment-intent', methods=['POST'])
+@login_required
+def create_payment_intent():
+    try:
+        data = request.get_json()
+        cart_items = data.get('items', {})
+
+        # Calculate total amount
+        amount = sum(float(item['price']) * item['quantity'] for item in cart_items.values())
+        amount_cents = int(amount * 100)  # Stripe expects amounts in cents
+
+        # Create payment intent
+        intent = stripe.PaymentIntent.create(
+            amount=amount_cents,
+            currency='usd',
+            metadata={
+                'user_id': current_user.id,
+                'items': str(cart_items)
+            }
+        )
+
+        return jsonify({
+            'paymentIntent': {
+                'client_secret': intent.client_secret
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/order-confirmation/<payment_intent_id>')
+@login_required
+def order_confirmation(payment_intent_id):
+    try:
+        # Retrieve the payment intent from Stripe
+        payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+
+        if payment_intent.status == 'succeeded':
+            # Create order in our system
+            items = eval(payment_intent.metadata.get('items', '{}'))
+            order = store.create_order(current_user.id, items)
+            flash('Your payment was successful! Order confirmed.')
+        else:
+            flash('There was an issue with your payment. Please contact support.')
+
+        return redirect(url_for('profile'))
+
+    except Exception as e:
+        flash('Error processing order confirmation')
+        return redirect(url_for('profile'))

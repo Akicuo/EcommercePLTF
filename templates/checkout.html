@@ -6,44 +6,26 @@
         <div class="card">
             <div class="card-body">
                 <h3 class="card-title">Checkout</h3>
-                <form method="post">
-                    <h4>Shipping Information</h4>
+                <form id="payment-form">
                     <div class="mb-3">
                         <label for="name" class="form-label">Full Name</label>
                         <input type="text" class="form-control" id="name" required>
                     </div>
                     <div class="mb-3">
-                        <label for="address" class="form-label">Address</label>
-                        <input type="text" class="form-control" id="address" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="city" class="form-label">City</label>
-                            <input type="text" class="form-control" id="city" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="zip" class="form-label">ZIP Code</label>
-                            <input type="text" class="form-control" id="zip" required>
-                        </div>
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" value="{{ current_user.email }}" required>
                     </div>
 
                     <h4 class="mt-4">Payment Information</h4>
                     <div class="mb-3">
-                        <label for="card" class="form-label">Card Number</label>
-                        <input type="text" class="form-control" id="card" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="expiry" class="form-label">Expiry Date</label>
-                            <input type="text" class="form-control" id="expiry" placeholder="MM/YY" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="cvv" class="form-label">CVV</label>
-                            <input type="text" class="form-control" id="cvv" required>
-                        </div>
+                        <div id="card-element" class="form-control"></div>
+                        <div id="card-errors" class="invalid-feedback d-block"></div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Place Order</button>
+                    <button type="submit" class="btn btn-primary" id="submit-button">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        Pay Now
+                    </button>
                 </form>
             </div>
         </div>
@@ -65,4 +47,76 @@
         </div>
     </div>
 </div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+const stripe = Stripe('{{ stripe_publishable_key }}');
+const elements = stripe.elements();
+const card = elements.create('card');
+card.mount('#card-element');
+
+card.addEventListener('change', function(event) {
+    const displayError = document.getElementById('card-errors');
+    if (event.error) {
+        displayError.textContent = event.error.message;
+    } else {
+        displayError.textContent = '';
+    }
+});
+
+const form = document.getElementById('payment-form');
+const submitButton = document.getElementById('submit-button');
+const spinner = submitButton.querySelector('.spinner-border');
+
+form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    submitButton.disabled = true;
+    spinner.classList.remove('d-none');
+
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+
+    try {
+        const {paymentIntent, error} = await fetch('/create-payment-intent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                items: JSON.parse(localStorage.getItem('cart')),
+                name: name,
+                email: email
+            })
+        }).then(r => r.json());
+
+        if (error) {
+            throw new Error(error);
+        }
+
+        const result = await stripe.confirmCardPayment(paymentIntent.client_secret, {
+            payment_method: {
+                card: card,
+                billing_details: {
+                    name: name,
+                    email: email
+                }
+            }
+        });
+
+        if (result.error) {
+            throw new Error(result.error.message);
+        }
+
+        // Payment successful
+        localStorage.removeItem('cart');
+        window.location.href = '/order-confirmation/' + result.paymentIntent.id;
+
+    } catch (error) {
+        const errorElement = document.getElementById('card-errors');
+        errorElement.textContent = error.message;
+        submitButton.disabled = false;
+        spinner.classList.add('d-none');
+    }
+});
+</script>
 {% endblock %}
